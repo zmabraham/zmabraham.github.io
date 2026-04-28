@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rabbi Zalman Abraham — Projects</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --gold: #d4a017;
+      --gold-dim: #a07810;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 2.5rem 2rem 2rem;
+      text-align: center;
+    }
+    header h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 0.5rem;
+      font-size: 1rem;
+    }
+    .star {
+      color: var(--gold);
+      font-size: 1.4rem;
+      display: block;
+      margin-bottom: 0.75rem;
+    }
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem;
+    }
+    .section {
+      margin-bottom: 3rem;
+    }
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.6rem;
+      margin-bottom: 1.2rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem 1.4rem;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .card:hover {
+      border-color: var(--accent);
+      background: #1c2128;
+    }
+    .card-name {
+      font-weight: 600;
+      font-size: 0.97rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .card-desc {
+      font-size: 0.87rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+      background: #21262d;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      align-self: flex-start;
+      margin-top: 0.25rem;
+    }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      padding: 2rem;
+      border-top: 1px solid var(--border);
+    }
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr; }
+      header h1 { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="star">✦</span>
+  <h1>Rabbi Zalman Abraham</h1>
+  <p>Projects, tools, and research — all in one place</p>
+</header>
+
+<main>
+
+  <div class="section">
+    <div class="section-title">Chabad Library</div>
+    <div class="grid">
+
+      <a class="card" href="https://zmabraham.github.io/chabadlibrary-pages" target="_blank">
+        <span class="card-name"><span class="card-icon">📚</span> Chabad Library Pages</span>
+        <span class="card-desc">50,000+ scraped pages from chabadlibrary.org — complete texts of the Rebbe's Torah, Tanya, Shulchan Aruch HaRav, and more.</span>
+        <span class="badge">GitHub Pages</span>
+      </a>
+
+      <a class="card" href="https://github.com/zmabraham/chabad-library-books" target="_blank">
+        <span class="card-name"><span class="card-icon">📖</span> Chabad Library Books</span>
+        <span class="card-desc">Hebrew texts from the Chabad Library — full clean-text books for download and RAG ingestion.</span>
+        <span class="badge">Data</span>
+      </a>
+
+      <a class="card" href="https://github.com/zmabraham/mafteiach" target="_blank">
+        <span class="card-name"><span class="card-icon">🗂️</span> Mafteiach</span>
+        <span class="card-desc">Complete index of the Rebbe's Torah — a structured reference for finding topics across all volumes.</span>
+        <span class="badge">Index</span>
+      </a>
+
+      <a class="card" href="https://github.com/zmabraham/chabad-sefaria-index" target="_blank">
+        <span class="card-name"><span class="card-icon">📜</span> Chabad–Sefaria Index</span>
+        <span class="card-desc">Comprehensive index of biblical, mishnaic, and Talmudic references appearing in Chabad Chassidut texts, sourced from Sefaria.</span>
+        <span class="badge">Index</span>
+      </a>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Chabad History &amp; Knowledge</div>
+    <div class="grid">
+
+      <a class="card" href="https://zmabraham.github.io/chabadpedia-timeline" target="_blank">
+        <span class="card-name"><span class="card-icon">📅</span> ChabadPedia Timeline</span>
+        <span class="card-desc">4,000+ events from 1700–2026 — interactive visual history of the Chabad movement.</span>
+        <span class="badge">Interactive</span>
+      </a>
+
+      <a class="card" href="https://zmabraham.github.io/undaunted-timeline" target="_blank">
+        <span class="card-name"><span class="card-icon">🕰️</span> Undaunted Timeline</span>
+        <span class="card-desc">Interactive timeline visualization of <em>Undaunted: The Story of Chabad Lubavitch</em>.</span>
+        <span class="badge">Interactive</span>
+      </a>
+
+      <a class="card" href="https://zmabraham.github.io/frierdiker-rebbe-timeline" target="_blank">
+        <span class="card-name"><span class="card-icon">✡️</span> Frierdiker Rebbe Timeline</span>
+        <span class="card-desc">Detailed interactive timeline of Rabbi Yosef Yitzchak Schneersohn's life and leadership.</span>
+        <span class="badge">Interactive</span>
+      </a>
+
+      <a class="card" href="https://zmabraham.github.io/chabadpedia-web" target="_blank">
+        <span class="card-name"><span class="card-icon">🕸️</span> ChabadPedia Knowledge Graph</span>
+        <span class="card-desc">Visualization and RAG search over the ChabadPedia knowledge base — explore connections between people, places, and events.</span>
+        <span class="badge">Interactive</span>
+      </a>
+
+      <a class="card" href="https://zmabraham.github.io/undaunted-knowledge-graph" target="_blank">
+        <span class="card-name"><span class="card-icon">🔗</span> Undaunted Knowledge Graph</span>
+        <span class="card-desc">Interactive graph of entities and relationships from the <em>Undaunted</em> book.</span>
+        <span class="badge">Interactive</span>
+      </a>
+
+      <a class="card" href="https://zmabraham.github.io/chabad-history-wiki" target="_blank">
+        <span class="card-name"><span class="card-icon">🌐</span> Chabad History Wiki</span>
+        <span class="card-desc">Comprehensive knowledge base of Chabad history — people, events, and movements.</span>
+        <span class="badge">Wiki</span>
+      </a>
+
+      <a class="card" href="https://zmabraham.github.io/Chabad_His_wiki" target="_blank">
+        <span class="card-name"><span class="card-icon">📗</span> Undaunted Knowledge System</span>
+        <span class="card-desc">Three-layer knowledge system built around Rabbi David Eliezrie's biography — sources, wiki, and synthesis.</span>
+        <span class="badge">Wiki</span>
+      </a>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Chassidus &amp; AI</div>
+    <div class="grid">
+
+      <a class="card" href="https://zmabraham.github.io/chassidus-ai-conference-2026" target="_blank">
+        <span class="card-name"><span class="card-icon">🎙️</span> Chassidus + AI Conference 2026</span>
+        <span class="card-desc">Landing page for the Chassidus and Artificial Intelligence Conference 2026.</span>
+        <span class="badge">Event</span>
+      </a>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Tools &amp; Utilities</div>
+    <div class="grid">
+
+      <a class="card" href="https://zmabraham.github.io/email-validator" target="_blank">
+        <span class="card-name"><span class="card-icon">✉️</span> Email Validator</span>
+        <span class="card-desc">Free email validation webapp — no signup, no API keys, instant SMTP and MX validation.</span>
+        <span class="badge">Web App</span>
+      </a>
+
+      <a class="card" href="https://github.com/zmabraham/email-validator-server" target="_blank">
+        <span class="card-name"><span class="card-icon">🔌</span> Email Validator API</span>
+        <span class="card-desc">Advanced email validation API with SMTP, MX, and catch-all detection — self-hostable server.</span>
+        <span class="badge">API</span>
+      </a>
+
+      <a class="card" href="https://github.com/zmabraham/idml-converter" target="_blank">
+        <span class="card-name"><span class="card-icon">📄</span> IDML Converter</span>
+        <span class="card-desc">Convert Adobe InDesign IDML files to Markdown for editing, then convert back with all formatting preserved.</span>
+        <span class="badge">CLI Tool</span>
+      </a>
+
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <a href="https://github.com/zmabraham" style="color: #58a6ff; text-decoration: none;">github.com/zmabraham</a>
+</footer>
+
+</body>
+</html>
