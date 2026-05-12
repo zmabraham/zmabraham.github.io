@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Tree Visualization</title>
+  
+  <!-- Load React -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  
+  <!-- Load D3.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  
+  <!-- Load Babel for JSX support -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.5/babel.min.js"></script>
+  
+  <!-- Load Lucide icons -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f9fafb;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    
+    h1 {
+      font-size: 1.75rem;
+      font-weight: bold;
+      padding: 1rem 0;
+      margin: 0;
+      color: #111827;
+      text-align: center;
+    }
+    
+    .visualization-container {
+      position: relative;
+      width: 100%;
+      height: calc(100vh - 100px);
+      padding: 0;
+    }
+    
+    .controls {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 10;
+    }
+    
+    .control-button {
+      padding: 0.5rem;
+      background-color: white;
+      border-radius: 0.25rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    
+    .control-button:hover {
+      background-color: #f3f4f6;
+      transform: translateY(-1px);
+    }
+    
+    .legend {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      gap: 1.5rem;
+      background-color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+    }
+    
+    .legend-color {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+    
+    .female-color {
+      background-color: #FFC0CB;
+      border: 1.5px solid #FF69B4;
+    }
+    
+    .male-color {
+      background-color: #ADD8E6;
+      border: 1.5px solid #4682B4;
+    }
+    
+    .notable-color {
+      background-color: #FFD700;
+      border: 1.5px solid #DAA520;
+    }
+    
+    .svg-container {
+      width: 100%;
+      height: 100%;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      background-color: white;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 8rem;
+      gap: 0.5rem;
+    }
+    
+    .spinner {
+      animation: spin 1s linear infinite;
+      border-radius: 50%;
+      border: 2px solid #e5e7eb;
+      border-top-color: #3b82f6;
+      height: 2rem;
+      width: 2rem;
+    }
+    
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    
+    .tooltip {
+      position: absolute;
+      background-color: rgba(255, 255, 255, 0.95);
+      padding: 0.75rem;
+      border-radius: 0.25rem;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+      font-size: 0.875rem;
+      max-width: 250px;
+      z-index: 100;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .node-notable {
+      stroke: #FFD700;
+      stroke-width: 3px;
+    }
+    
+    .reset-button {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      padding: 0.5rem;
+      background-color: white;
+      border-radius: 0.25rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    
+    .reset-button:hover {
+      background-color: #f3f4f6;
+    }
+    
+    .status-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0.5rem;
+      font-size: 0.875rem;
+      color: #4b5563;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    // =====================================================================
+    // DATA: REPLACE THIS CSV DATA WITH YOUR FAMILY TREE DATA
+    // Format: Gender (m/f), ID, Name, Parent1ID, Parent2ID, Notable (N for notable)
+    // =====================================================================
+    const FAMILY_TREE_CSV_DATA = `Gender,ID,Name,Parent1ID,Parent2ID,Notable
+f,72831,Chana Abraham,72832,72833,
+m,72832,Zalman Abraham,72834,72835,
+f,72833,Leah Abraham,72836,72837,
+m,72834,Mordechai Abraham,72838,72839,
+f,72835,Tsivia Devora Weiss,72840,72841,
+m,72836,Yaacov Dubroff,72842,72843,
+f,72837,Shoshana Rosemary Dubroff,72844,72845,
+m,72838,Max Abraham,72846,72847,
+f,72839,Ruth Abraham  1928  d,72848,72849,
+m,72840,Daniel Weiss Dudi Dovid,72850,72851,
+f,72841,Charlotte Weiss,72852,72853,
+m,72842,Nathaniel Nachum Dubroff,72854,72855,
+f,72843,Isabell Chaya Dubroff,72859,72856,
+m,72844,Bernard Berel Goldstien,72857,72858,
+f,72845,Freda Weber,72860,72861,
+m,72846,Marton Aharon Mordechai Abraham  1882  1944,72862,72863,
+f,72847,Reisel Esther Abraham,72864,72865,
+m,72848,Berel Wertzberger  1891  1944,72866,72867,
+f,72849,Peszel Wertzberger,72868,72878,
+m,72850,Gabriel Gedaliah Weiss,72869,72870,
+f,72851,Hilda Hinda Kallus,72871,72872,
+m,72852,David Owen,72879,72873,
+f,72853,Gussie Owen,72874,72875,
+m,72854,Max Dubroff,72880,72881,
+f,72855,Sara Dubroff,72882,72883,
+f,72856,Flossie Purkin,72884,72885,
+m,72857,Abraham Chaim Goldstein,72886,72887,
+f,72858,Celia Zivia Goldstein,72876,72877,
+m,72859,Arthur Avraham Winter,,,
+m,72860,Eliezer Louis Weber,,,
+f,72861,Rochel Leah Rae Herman,,,
+m,72862,Laszlo Abraham weiss  c1843  d,72896,72897,
+f,72863,Julia Lani Leah אברהם,72898,72899,
+m,72864,Majer Züszman  c1839  1908,72900,,
+f,72865,Brána Markovics,72901,72902,
+m,72866,Moshe Wertzberger  1873  d,72903,72888,
+f,72867,Sara Feiga Wertzberger שרה פײגא װערצברגר Sarah Feiga Wetzberger Wercberger,72889,72890,
+m,72868,Michoel Michel Shteinmetz,72891,72904,
+m,72869,Isadore  Yitzchak Isaac Weiss,72905,72906,
+f,72870,Helen Chana Hudya Weiss Mirmelstein,72907,72908,
+m,72871,Zalman Kallus,72892,72893,
+f,72872,Tziviah Kallus,72894,72895,
+f,72873,Lena Owen,72909,72910,
+m,72874,Samuel Lynn,72911,,
+f,72875,Yetta Anna Lynn,72912,,
+m,72876,Chaim Avrum Moshkevitch,72913,72914,
+f,72877,Rose Moshkevitch,72915,,
+f,72878,Risa Adler,,,
+m,72879,Joe Diamond,,,
+m,72880,Solomon Dubroff,,,
+f,72881,Sarah Dubroff,,,
+m,72882,Joseph Frank,,,
+f,72883,Fannie Frank,,,
+m,72884,Louis Purkin,,,
+f,72885,Stella Purkin,,,
+m,72886,Yitzchak Isaac Goldstein,,,
+f,72887,Sarah Goldstein Nee,,,
+f,72888,Eidel Werczberger  b  c1924 Eidl Odel Udel Wertzberger Vertzberger,72922,72923,
+m,72889,Yehuda Avraham Eber Rosenberg,72916,72917,
+f,72890,Esther Rosenberg,72918,72924,
+m,72891,Izrael Meir Steinmetz,72925,,
+m,72892,Abraham Kallus,72919,72926,
+f,72893,Feige Kallusch,72920,72927,
+m,72894,Mozes Krausz,72928,72929,
+f,72895,Sura Kesztenbaum,72930,72921,
+m,72896,Hershko Weiss,,,
+f,72897,Gizella Abraham,,,
+m,72898,Menachem Moshe Reisman,,,
+f,72899,רחל ריזמן  c1851  d,,,
+f,72900,Zsisa Züszman,,,
+m,72901,Zishe Markovics,,,
+f,72902,Sheva Markovics,,,
+m,72903,Jószef Márkus Mordechai Werczberger,,,
+f,72904,Zlata Steinmetz,,,
+m,72905,Zalman Ber Berko,,,
+f,72906,Yehudis Helen Hudya Sadie Weiss Santman,,,
+m,72907,Dovid Mermelstein,,,
+f,72908,Tzivia Celia Mirmelstein,,,
+m,72909,David Braver,,,
+f,72910,Leah Braver,,,
+m,72911,Tzvi Hirsh Lynn,,,
+m,72912,Meyer Zev Gutterson,,,
+m,72913,Shlomo Moshkevitch,,,
+f,72914,Bertha,,,
+m,72915,Chatskel Manosoff,,,
+m,72916,Yaakov Rosenberg  1805  1883 מסיגט,72931,72932,
+f,72917,Nissel Rosenberg,72933,72934,
+m,72918,Saul Yehuda Leib Steinmetz,72935,72936,
+m,72919,Rabbi Moses Lazar Eliezer Kallus,72937,,
+m,72920,Harav Meshilem Dov Kalush Dayan Munkach,72938,,
+f,72921,Amalia Malke Kestenbaum,72939,,
+m,72922,Rabbi Yaakov Steinmetz  1826  1891 Steinmets,,,
+f,72923,Feiga Blima Steinmetz Kahana  bef1830  1902,,,
+f,72924,Chaya Yuta Steinmetz,,,
+m,72925,Meir Steinmetz,,,
+f,72926,Chaje Szure Kallus,,,
+f,72927,Gitze Kallusch,,,
+m,72928,Fishel Mayer Krausz,,,
+f,72929,Rachel Krausz,,,
+m,72930,Yaakov Kesztenbaum,,,
+m,72931,Avraham Avrohom Eber Rosenberg  1787  1831,72946,72940,
+f,72932,Rivka Miriam Rosenberg,72947,72941,
+m,72933,Rabbi Nachman HaCohen KahanaHeller,72942,72943,
+f,72934,Frieda Rebecca Kahana,72944,,
+m,72935,Avraham Baruch Steinmetz,72948,,
+f,72936,Rivka Yita Steinmetz,72945,72949,
+m,72937,Rabbi Leba Kallush Raaved Munkatch,72950,,
+m,72938,Yehuda Leibish Kallusch,,,
+m,72939,N Zahler,,,
+f,72940,Chaya Elentman,72956,72951,
+f,72941,Baila,72957,72952,
+m,72942,Rabbi Judah Kahana Heller r of Sziget Kuntres haSfekot,72953,72958,N
+f,72943,Rachel Leah KahanaHeller,72959,,
+m,72944,Yisucher Halpern,72954,,
+m,72945,Yakov Avrum HaLevi Wiesel,72955,,
+m,72946,Leib Elentman  Elentman,,,
+m,72947,Tvi Hersh Zavidka Zyadger Rosenberg,,,
+m,72948,Shlomo Steinmetz,,,
+f,72949,Serel Wiesel,,,
+m,72950,Samuel Kallusz  Kallush,,,
+f,72951,Wife of Meir of Yoshinka Daugh of Yitzchak Chayus,72960,72961,
+f,72952,Perel Horodenker Breslaver sister,72962,72963,
+m,72953,Rabbi Joseph haCohen KahanaHeller of Kalisz,72964,72965,
+m,72954,Rabbi Eliezer Lipman Halpern,72966,72967,
+m,72955,Yechiel Michael HaLevi Weisel,72968,,
+m,72956,Meir of Joshinka  מאיר מכפר יאשינקא,,,
+m,72957,Pinchas Meir Zyadger of Safed,,,
+f,72958,Nissel KahanaHeller,,,
+m,72959,Issachar DovBerish,,,
+m,72960,Yitzchok II Chajes ABD Skolye  c1640  1726 מחבר ספר זרע יצחק,72969,,
+f,72961,Chaya Chajes Gad  Chaya Gad ,72979,,
+m,72962,Rabbi Simcha Horodenker Breslaver father,72970,72971,
+f,72963,Feiga Horodenker the Prophetess,72972,72973,
+m,72964,Rabbi Yechiel Michel KahanaHeller of BriskKalisz,72974,,
+f,72965,Sarah KahanaHeller,72980,,
+m,72966,R Issachar Berish Halpern,72975,72976,
+f,72967,Wife of R Issachar Berish Halpern,72977,,
+m,72968,Rabbi Dovid סגל HLevi,72978,,
+m,72969,Yaakov Chajes,72981,72982,
+m,72970,Rabbi Nachman Horodenker Breslaver GdFather,72983,72984,
+f,72971,wife Nachman Horodenker,72985,72986,
+m,72972,Rabbi Yechiel of Mezhibuzh,72987,72998,
+f,72973,Rbzn Udel Ashkenazi dau Baal Shem Tov,72988,72989,
+m,72974,Rabbi Yehuda Kahana Heller of Kalisz,72990,72991,
+m,72975,Rabbi David Halpern ABD Ostrog,72992,72993,
+f,72976,The Rebbetzin Roza Halpern,72994,72995,
+m,72977,R Jehiel ABD Kovel,72996,,
+m,72978,Yechiel Michel HaLevi Segal Wiesel,72997,,
+m,72979,Yedidyah Gad of Kalisz,,,
+f,72980,Raisel Heller,,,
+m,72981,Menahem Manish Chajes ABD Vilna,72999,73000,
+f,72982,Bat Itzhak Zeev Wolf Chayot Chayes,73000,,
+m,72983,Reb Yitzchak of Zolkiev,73001,73002,
+f,72984,wife Yitzhak Mordechai of Zhovkva Zolkiev,73019,,
+m,72985,Yosef Spravidliver “man of truth”,73003,,
+f,72986,Yenta The Prophetess Drohovitcher The Prophetess,73020,,
+m,72987,Baruch Ashkenazi,73021,,
+m,72988,Baal Shem Tov Israel ben Eliezar Isserles,73004,73022,N
+f,72989,Leah Rachel or Chana Isserles Besht 2nd wife,73005,73006,
+m,72990,Yaakov Yosef Kahana Katz of Turysk,73007,,
+f,72991,Raizel Segal Kahana d1 Tosfot Yom Tov,73008,73009,
+m,72992,R Israel Charif Halpern ABD Zaslav,73010,73011,
+f,72993,Rebbetzin Reitze Halpern,73012,73013,
+m,72994,Rabbi Chaim Romaner,73014,,
+f,72995,Hadassa Romaner,73015,73016,
+m,72996,Rabbi Samuel Margaliot ABD Kowal,73023,,
+m,72997,Rabbi Shlomo Wiesel HaLevi Segal,73017,73018,
+f,72998,Shifra Ashkenazi the righteous,,,
+m,72999,Yitzhak Chajes ABD Prague Prossnitz,73024,,
+f,73000,Mindel Sax,73025,73026,
+m,73001,Reb Shmuel Zanvil Pfersee,73027,,
+f,73002,Perla Sanfel Pfersee,73028,73029,
+m,73003,Rabbi Moshe Chayes of Zvirsh,73030,,
+m,73004,Rabbi Eliezer Isserles of Okopy Father of Baal Shem Tov,73031,73055,
+m,73005,Ephraim Fischel Kitover of Brody,73056,73032,
+f,73006,Etel Cohen Chayut,73033,73034,
+m,73007,Yehiel Michel Kahana,73035,,
+m,73008,Yom Tov Lippman Heller  Tosfot Yom Tov,73036,73037,N
+f,73009,Rachel Heller wife Tosfot Yom Tov,73038,73039,
+m,73010,Rabbi Eliezer Lippman Heilprin ABD of Tarnogrod,73040,73041,
+f,73011,Margola Heilperin Schor,73042,73043,
+m,73012,Yitzhak Babad ABD Brody Krakover,73044,73045,
+f,73013,Rbzn Beila Babad,73046,73047,
+m,73014,NN Romaner,73048,,
+m,73015,Rabbi Naftali Hirsch ABD Pinczow and then Lublin,73057,,
+f,73016,Feige Heschel,73049,73050,
+m,73017,Rabbi David HaLevi Segal Turei Zahavf TuZTaZ,73051,73052,N
+f,73018,Rivka Segal Tuz 1st wife Bach dau,73053,73054,
+m,73019,Mordechai Mi Vienna,,,
+m,73020,Rabbi Yosef Spradweiler,,,
+m,73021,Gershon Ashkenazi Hagaon Hagadol,,,
+f,73022,Sarah wife Eliezer of Okopy Mother Baal Shem Tov,,,
+m,73023,Mordechai Margaliot Krakow,,,
+m,73024,Avraham Chajes aka Eberl Altschuler,73091,,
+m,73025,Shmuel Reich Schmelke Sax,73058,,
+f,73026,Selka Sax,73058,,
+m,73027,Rabbi Yitzhak I Eizik of Zolkiew,73092,73059,
+m,73028,R Jacob David Fränkl Mirls Neumark ABD Vienna,73093,,
+f,73029,Rachel Heller FrankelMirels,73061,73062,
+m,73030,Meir ben Yitzchak father of R Moshe Zvirsh,72960,72961,
+m,73031,Rabbi Pinchas Isserles Grandfather of Baal ShemTov,73063,,
+f,73032,1st wife Avraham Gershon Ashkenazi of Kitov,73094,,
+m,73033,Rabbi Menachem Manesh Chayot,73064,,
+f,73034,Esther HaTzaddika Chayot Shach dau2,73065,73066,
+m,73035,Natan Kahana,73095,,
+m,73036,Nathan Halevi HellerWallerstein,73067,73068,
+f,73037,Gittel bat Ascher Heller Wallerstein Günzburg,73069,73070,
+m,73038,Moses Aaron Ashkenazi Munk,73071,,
+f,73039,Nechama Ashkenazi Teomim,,73072,
+m,73040,R Isaac Halpern ABD Tykocin,73073,73074,
+f,73041,Bela Halperin,73075,,
+m,73042,R Jacob Shor ABD Lutzk BrestLitovsk and Brody,73076,73077,
+f,73043,Chana Shor,73078,,
+m,73044,Rabbi Issachar Berish Babad,73049,,
+f,73045,Roza BabadKadoshHelperin,73079,73080,
+m,73046,Rabbi David HaLevi the Katvan ,73096,,
+f,73047,Tova Toybe wife David the Katvan Shach dau3,73065,73066,
+m,73048,Unknown son of Rabbi Shmuel Romaner,73081,,
+m,73049,Rabbi Abraham Joshua Heschel Head Cracow Yeshiva,73082,73083,
+f,73050,Rbzn Dina Katz Heschel,73084,73085,
+m,73051,Rabbi Shmuel Halevi Segal of Ludomir TUZ father,73086,,
+f,73052,Chana Betzalels,73087,,
+m,73053,Rabbi Yoel ben Shmuel Sirkis The Bach,73088,73097,N
+f,73054,Baila Sirkis,73089,73090,
+f,73055,Sarah Leizers Isserls,,,
+m,73056,Rabbi Abraham Gershon Ashkenazi of Kitov,,,
+m,73057,R Benjamin Wolf,,,
+m,73058,R Jacob Sachs of Prague,73136,73098,
+f,73059,Wife Gumprecht,73137,,
+f,73060,Mirrel bat Abraham Neumark,73099,73100,
+m,73061,Rabbi Jacob the Elder HaLevi Koppel Heller Wallerstein ABD Neustadt,73099,73101,
+f,73062,Mirel Sarah Heller Wallerstein Teomim,73102,73103,
+m,73063,Gt Grandfather of the Baal Shem Tov Grandchild of Eliezers Isserls,73104,73105,
+m,73064,Meir Chayos,73106,,
+m,73065,HaRav Shabty Ashkenazi HaCohen Katz the SHaCH,73107,73108,N
+f,73066,Yenta Leah Katz,73109,,
+m,73067,Moshe I ben Abraham I Halevi HellerWallerstein,73110,,
+f,73068,Fraidlin Ammersweiler,73111,73138,
+m,73069,Osher Aharon UlmoGünzburg,73112,73113,
+f,73070,Edel Ginzberg,73139,,
+m,73071,Rabbi Shmuel Spira,73114,,
+f,73072,Rivkah Teomim Horowitz,73115,73116,
+m,73073,R Eliezer Lipman Heilprin ABD Lviv,73117,73118,
+f,73074,wife EliezerLipman Heilpren of Lublin,73119,73120,
+m,73075,Mordechai Halevi Segal,73017,73018,
+m,73076,Rabbi Ephraim Zalman Shor author of Tevuat Shor,73121,73122,
+f,73077,Henele Schor,73123,73124,
+m,73078,Rabbi Isaiah Lazer Isserles,73105,,
+m,73079,Rabbi Mordechai Yollis of Cracow,73125,73126,
+f,73080,Tauba Toibel Yollis,73127,73128,
+m,73081,R Shmuel Hadarshan,73140,,
+m,73082,Rabbi Yaakov Hirsch Levenshtam ABD Brisk & Lublin,73129,73130,
+f,73083,Deborah Lubliner,73131,73132,
+f,73084,Judah Zalman Wahls,73141,,
+f,73085,Wife of Judah Wahls,73104,73105,
+m,73086,Shlomo Zalman HaLevi ,73134,73142,
+m,73087,Rabbi Yitzchuk Betzalels,73143,,
+m,73088,Rabbi Shmuel ben Moshe Jaffe Bach father,73135,,
+m,73089,Rabbi Abraham Hertzkus of Lwow,73145,,
+f,73090,Chana Falka Hertzkus,73144,73146,
+m,73091,Pinchas Chajes,,,
+m,73092,Rabbi Yehuda Leib ABD Vienna,,,
+m,73093,Naphtali Hirsch Neumark,,,
+m,73094,Shlomo Katz,,,
+m,73095,Avrom Aryeh Kahana,,,
+m,73096,Rabbi Yitzhak HaLevi Segal,,,
+f,73097,Sarah Jaffe,,,
+f,73098,Dobra Altschuler,73189,73147,
+m,73099,Rabbi Avraham II ben Moshe I HellerWallerstein Fränkel Maharal son in Law of 6,73067,73068,
+f,73100,Rachel HellerWallerstein Maharal dau 6,73148,,
+f,73101,Bela Heller Wallerstein,73190,,
+m,73102,Meshulam Zalman Teomim ,,73072,
+f,73103,Dwerl Dvorel Dverei TeomimMunk,73191,,
+m,73104,Rabbi Moshe Lazers Isserles of Cracow,73149,73150,
+f,73105,Wife of Moshe Lazers Isserles,73151,73152,
+m,73106,Shimshon Chayot,72981,72982,
+m,73107,Rabbi Meir Hakohen Katz Ashkenazi,73153,73154,
+f,73108,wife Meir Katz Ashkenazi,73155,,
+m,73109,Rabbi SimonBinyamin son Isaac Wolf Meisels of Vilna,73156,73157,
+m,73110,Rabbi Abraham I HaLevi Heller Wallerstein,73158,,
+m,73111,Awraham Heilbrunn z Fisch z Taube,73159,73192,
+m,73112,Rabbi Simon ben Elieser UlmoGünzburg,73160,73161,
+f,73113,Hindle Hendlen UlmoGünzburg,73162,73193,
+m,73114,Aharon Spira,73163,,
+m,73115,Israel Munk HaLevi Horowitz,73164,73165,
+f,73116,Nissel Reisel Rachel Ursula Horowitz,73194,,
+m,73117,R Avraham Heilprin ABD Lviv,73166,73167,
+f,73118,Lusia AshkenaziHeilprin,73084,73085,
+m,73119,Natan Nate Kahana ABD Ostraha & Premishla,73168,73169,
+f,73120,Wife R Natan Nate Kahana Katz,73170,73171,
+m,73121,Rabbi Naftali Zvi Hirsch Schor ABD Brisk Lublin,73172,73173,
+f,73122,Rivka Shor Schachna,73174,73195,
+m,73123,Saul Wahl Katzenellenbogen 1 day King,73175,73196,
+f,73124,Deborah Rivkah WahlKatzenellenbogen,73176,73177,
+m,73125,Michael Yollis Jolles,73178,,
+f,73126,dau Moshe Egel,73197,,
+m,73127,R Moshe HaLevi parnas & leader of krakow,73179,73180,
+f,73128,מרת טייבל יאלש,,,
+m,73129,Rabbi Efraim Naftali Hirsch Levenshtam ABD Ludmir,73181,73182,
+f,73130,wife Efraim Naftali Hirsch,73183,73184,
+m,73131,Rabbi Meir Moshe Wahl Katzenellenbogen MaHaRash,73123,73124,N
+f,73132,Hinda Halevi Katzenellenbogen,73185,73186,
+f,73133,Pesia Hesia Walsch,73123,73124,
+m,73134,David Halevi Steinberger,73187,,
+m,73135,Moshe ben Abraham Jaffe,73188,,
+m,73136,Reb Koppel Altschuler,,,
+m,73137,Rabbi Mordechai Gumprecht,,,
+f,73138,Jachent Heilbrunn,,,
+m,73139,Yitzchak Hakohen,,,
+m,73140,Rabbi Benjamin ABD Posen,,,
+m,73141,R Meir Walsch,,,
+f,73142,Rivka Steinberger,,,
+m,73143,Rabbi Betzalel,,,
+m,73144,Rabbi Yoel Singer of Cracow,,,
+m,73145,Rabbi Naftuli Hirsch Hertzki Krakowitz Fum ABD Lvov,73242,,
+f,73146,Eshet Singer,73198,73199,
+f,73147,Daughter of R Moshe Breznicky,73200,73243,
+m,73148,MaHaRaL of Prague,73201,73202,N
+m,73149,Eliezer Isserles of Krakow,73203,73204,
+f,73150,Miriam Olga Isserles Luria Maharshals daughter,73205,73206,
+m,73151,Rabbi Naphtali Tzvi Hirsch Sofer,73207,,
+f,73152,Telza Rivele Sofer,73131,73132,
+m,73153,Moses Katz zur Reuse,73208,73209,
+f,73154,Golde Katz,73210,73211,
+m,73155,Rabbi Yitzhak Katz of Posnan,73244,,
+m,73156,Rabbi Isaac Wolf BunimMeisels of Vilna,73212,,
+f,73157,Leah Bunim Meisels,73213,73214,
+m,73158,Rabbi Nathan Halevi Heller Wallerstein,73215,,
+m,73159,Shaul Bing of Bingen,73245,,
+m,73160,Rabbi Eliezer Abraham Ulmo Günzburg,73246,73216,
+f,73161,Simche Günzburg,73217,,
+m,73162,Rabbi Isaac Linz ABD Frankfurt,73247,,
+m,73163,David Spira,73218,,
+m,73164,Aaron Meshulam Zalman Munka Halevi Horowitz,73219,73220,
+f,73165,Nechama bat Menachem Horowitz,73221,,
+m,73166,R Moshe Heilprin Maharsha fatherinlaw,73248,,
+f,73167,Eidel AshkenaziHalpern,73222,73223,
+m,73168,Rabbi Moshe Mordechai Kahana ABD Barzan,73224,,
+f,73169,wife Moshe Mordechai Kahana dau Maharam of Lublin,73225,73226,
+m,73170,R Shlomo Katz,73224,,
+f,73171,Scheine Katz,,73227,
+m,73172,Rabbi Moshe Zalman Ephraim Schor,73228,73229,
+f,73173,Hanna Schor,73230,,
+m,73174,Rabbi Israel Shachna,73231,73232,
+m,73175,Rabbi Shmuel Yehuda Katzenellenbogen MaHaShiks MaHaRaM son 1,73233,73234,
+m,73176,David Yehiel Drucker The printer of Vienna,73249,,
+f,73177,Kendel Segal Drucker,73203,73204,
+m,73178,R Yitzchak Moyen,73236,,
+m,73179,R Shmuel Segal HaLevi,73250,,
+f,73180,בתו של ר אברהם יאלש,,,
+m,73181,Rabbi Yosef Yonah Yomak Babad,73237,73238,
+f,73182,Egele Olga Babad,73121,73122,
+m,73183,Rabbi Yaakov Weil,73239,,
+f,73184,Bonah Weil d 2,73233,73234,
+m,73185,Rabbi Pinchas HaLevi Horowitz,73115,73116,
+f,73186,Miriam Beila Horowitz Isserles REMAs sister,73203,73204,
+m,73187,Gaon Avraham haLevi,73240,,
+m,73188,Rabbi Abraham ben Moses Jaffe of Bohemia,73241,,
+m,73189,David Pisecky,,,
+m,73190,Meir haLevi,,,
+m,73191,Rabbi Joseph Pohelitz,,,
+f,73192,Tserlin Bingen,,,
+f,73193,Tzerlin Linz,,,
+m,73194,Rabbi Moshe Halevi Ashkenazi,,,
+f,73195,Wife of Yisroel M Loblin Charif,,,
+f,73196,Abigail Ogla Katzenellenbogen,,,
+m,73197,Hagaon Rabbi Moshe Egel,,,
+m,73198,HaRav Yitzhak Klauber of Posen,73298,73299,
+f,73199,wife Yitzhak Klauber,,73255,
+m,73200,Rabbi Moshe Ben Yitzhak Breznicky,73300,,
+m,73201,Betzalel ben Chaim Maharals father,73251,,
+f,73202,wife Betzalel  Maharals mother,,,
+m,73203,Rabbi Israel Joseph Isserles RaMA father of Krakow,73252,73253,
+f,73204,Dinah Malka Isserles RaMA mother,73254,73255,
+m,73205,Rabbi Shlomo Luria MaHaRSHaL,73256,73257,N
+f,73206,Lipka Luria,73258,,
+m,73207,Pethahiah ben Joseph Sofer HaAluf of Prague,73301,,
+m,73208,Ephraim Gumpel Katz z Bär,73259,,
+f,73209,Reitz Katz,73260,,
+m,73210,Meir Bingen zur Leiter,73302,73261,
+f,73211,Jute  Gutta Bingen,73303,,
+m,73212,Rabbi Yosef Bonems of Lublin,73304,,
+m,73213,Simcha Bunim Meisels ABD Krakow ReMA sinlaw,73262,73263,
+f,73214,Dreizel Therese BunimMeisels,73264,73265,
+m,73215,Israel HaLevi Oettingen,73266,,
+f,73216,Fruma Of Porto Ben Shmuel,73267,,
+m,73217,Samuel Ginz ha Levi,73305,,
+m,73218,Shimon Spira,73268,,
+m,73219,Rabbi Yeshaya ben Moshe Asher HaLevi The 1st Horowitz,73269,73270,
+f,73220,Rivka Horowitz Munka,73306,73307,
+m,73221,Rabbi Menachem,73308,73309,
+m,73222,Rabbi Moses Lipschitz Lechem Mishne,73271,73272,N
+f,73223,Wife Rabbi Moshe Lipshitz,73273,73274,
+m,73224,rabbi Nathan Nate Kahana,73275,,
+m,73225,Rabbi Meir ben Gadalya Maharam of Lublin,73276,73277,N
+f,73226,Esther wife Maharam of Lublin,73278,73310,
+f,73227,Mrs Eliyahu Lipshitz,73203,73204,
+m,73228,Rabbi Abraham Hayyim ben Samuel Schor,73279,,
+f,73229,wife Avraham Schor,73280,73281,
+m,73230,Naftali Hirsch Treves of Frankfurt,73282,,
+m,73231,Rabbi Shalom haCohen Shachna of Lublin,73283,73311,
+f,73232,Chana Yonah Schachna,73284,73285,
+m,73233,Rabbi Meir Katzenellenbogen Maharam of Padua,73286,73287,N
+f,73234,Hanna Katzenellenbogen,73288,,
+f,73235,Dina Luria,73198,73199,
+m,73236,Yechiel Chalfan Hakadosh of Vienna,73289,73290,
+m,73237,Rabbi Kalonimus Kalman Babad HaAshkenazi,73291,73292,
+f,73238,Wife of Rabbi Kalonimus Kalman Babad HaAshkenazi,73293,73294,
+m,73239,Rabbi Moshe Weil HaLevi,73295,,
+m,73240,Rabbi Moshe HaLevi,73296,,
+m,73241,Rabbi Moses ben Eliezer Jaffe of Bologna,73297,,
+m,73242,R R Menachem Mendel Krakowitz Fum ABD Krakavitz,,,
+f,73243,Lipet Breznicky,,,
+m,73244,Nin VNeveh Feivish ABD Krakow,,,
+f,73245,Roeslin Heilbronn,,,
+m,73246,Jechiel Porto,,,
+m,73247,R Eliyakim Linz,,,
+m,73248,Rabbi Zevulun Eliezer Heilprin,,,
+m,73249,Rabbi Shlomo Ashkenazi Luria,,,
+m,73250,Rabbi Yaakov HaLevi,,,
+m,73251,Chaim Maharal PatGdfather,73353,,
+m,73252,Yosef ben Chaim Isserles REMAs par GdFather,73312,73354,
+f,73253,Gittel Isserles,73313,73314,
+m,73254,Eliezer Lipmann Schrentzel ReMa Gdfather,73315,73316,
+f,73255,Dreizel Miriam Zeisel Schrenzel ReMA Gdmother,73317,73318,
+m,73256,Rabbi Yechiel Luria of Slutzk,73319,73320,
+f,73257,wife Yechiel ben Avraham Luria,73198,73199,
+m,73258,Rabbi Klonyimos Kalman Haberkstein,73321,,
+m,73259,Chaim Katz z Bär,73355,,
+m,73260,Rabbi Jakob Katz,73322,,
+f,73261,Freudlin Bingen,73323,73324,
+m,73262,Rabbi Avraham Meisels of Cracow,73325,,
+f,73263,wife Avraham Meisels of Cracow,73326,,
+m,73264,Rabbi Moses ben Israel Isserles RaMA,73203,73204,N
+f,73265,Golda Isserles ReMa 2 wife,73231,73232,
+m,73266,Eliezer HaLevi,73356,,
+m,73267,Rabbi Aharon Zeligman,73357,,
+m,73268,Yitzchok Spira,73327,,
+m,73269,Moshe Asher Zalman haLevi,73358,,
+f,73270,Mindel bat Meshulam,73359,,
+m,73271,Yitzchak Yosinot Lipshitz of Posen,,73227,
+f,73272,wife Isaac Josinot Lipschitz,73256,73257,
+m,73273,Rabbi Yehuda Aryeh Leib Caro ABD Glogau,73328,73329,
+f,73274,wife Yehuda Caro of Glogau,73330,,
+m,73275,Rabbi Eliyahu Katz Kahana,73331,,
+m,73276,Rabbi Gedalia Racheles father MaHaRam of Lublin,73332,73333,
+f,73277,wife of Rabbi Gedalya,73360,,
+m,73278,Yitzchok HaKohen Shapira,73334,73335,
+m,73279,Rabbi Shmuel Schor,73336,,
+m,73280,Hagaon Rabbi Gershon Meisels,73337,,
+m,73281,wife Gershon Meisels,73361,,
+m,73282,Rabbi Eliezer Treves ABD Schlezstadt,73338,73339,
+m,73283,Yoseph Schorr Shachna,73340,73362,
+m,73284,Yaakov Pollack,73363,,
+f,73285,Esther Pollack,73341,,
+m,73286,Yitzhak ben Moshe of Ellenbogen,73364,,
+f,73287,JuliaMalka wife Yitzhak of Ellenbogen,73317,73318,
+m,73288,Rabbi Avraham ben Yehuda HaLevi Mintz,73342,73343,
+m,73289,Rabbi Dr Elia ben Abba Mari Chalfan,73344,73345,
+f,73290,Rebekka Chalfan,73346,,
+m,73291,Rabbi Yona Kalman Babad HaAshkenazi,73347,,
+f,73292,בת המהרם מלובלין Babad,73225,73226,
+m,73293,Rabbi Jonah Weil,73348,73349,
+f,73294,Feile Weil,73172,73173,
+m,73295,Grandson of MAHARI Weill HaLevi,73350,,
+m,73296,Gaon Yosef haLevi Steinberger of Polands wisest,73351,,
+m,73297,Rabbi Eliezer ben Israel Jaffe,73352,,
+m,73298,Zecharia Mendel Klauber,,,
+f,73299,Sarah Sirka Klauber,,,
+m,73300,rabbi Yitzhak Breznicky,,,
+m,73301,Joseph HaKadosh of Ofen,,,
+m,73302,Moses Bingen,,,
+m,73303,unlikely father Efraim,,,
+m,73304,רבי יוסף מייזליש,,,
+m,73305,Rabbi Yehiel Jechiel de Porto,,,
+m,73306,Rabbi Yom Tov HellerWallerstein,,,
+f,73307,Rachel HellerWallerstein,,,
+m,73308,Moshe,,,
+f,73309,Esther Nechama,,,
+f,73310,Bila Kahana Shapira,,,
+f,73311,Golda Schor,,,
+m,73312,Haim Henschel Isserles,73365,,
+m,73313,Rabbi Moses Auerbach of Regensburg & Krakow,73366,,
+f,73314,Mushkat Auerbach,73365,,
+m,73315,Rabbi Nachman Shrentzel,73367,73368,
+f,73316,Royzu Schrentzel Golden Heart,73369,73370,
+m,73317,Yechiel Yehuda ben Aharon Luria ABD Brisk,73371,73372,
+f,73318,Malka Luria,73402,73403,
+m,73319,Avraham ben Yechiel Luria II ABD Brisk,73317,73318,
+f,73320,wife Abraham Luria,73404,73405,
+m,73321,Yaakov Haberkshtein,73373,,
+m,73322,מהרמ Katz,73406,,
+m,73323,R Mayer Wirschler,73407,,
+f,73324,Breinlin Wirschler,73374,,
+m,73325,Rabbi Yosef Meisels,73280,73281,
+m,73326,Yehudah Leib Meisels,73375,,
+m,73327,Rabbi Peretz Spira ABD Konstanz,73376,73377,
+m,73328,Rabbi Yosef Kara,73378,73608,
+f,73329,wife of Yosef Caro,73380,73381,
+m,73330,Yosef XI Hirsch HaLevi Horowitz,73382,,
+m,73331,לא ידוע Kahana,73383,,
+m,73332,Rabbi Asher Racheles,73408,,
+f,73333,Hendel Lemel,73341,,
+m,73334,David Kahana Shapira,73384,73385,
+f,73335,wife of David Shapira,73409,,
+m,73336,Rabbi Avraham Schor,73386,,
+m,73337,Hagaon Rabbi Avraham Meisels,73387,,
+m,73338,Rabbi Shmuel Treves,73388,73389,
+f,73339,Bat Gershon Treves,73410,,
+m,73340,Shachna Zekl,73390,,
+m,73341,Rabbi Moshe Fiszel,73391,,
+m,73342,Rabbi Yehudah HaLevi Mintz,73411,,
+f,73343,Halevi Minz,73392,,
+m,73344,Rabbi Dr Abba Mari Salvator Chalfan,73393,73394,
+f,73345,Rachel Chalfan,73412,73413,
+m,73346,Jehosua Heschel Gronem,73395,,
+m,73347,Rabbi Klonimus Kalman Babad ABD Regensburg,73396,,
+m,73348,Rabbi Jacob Yokel Weil,73397,,
+f,73349,Judith Judel Weil,73414,,
+f,73350,Adelheid Joehr Wyss,73398,73399,
+m,73351,Gaon Leibush haLevi Steinberger of Polands wisest,73400,,
+m,73352,Israel JaffeSofer,73401,,
+m,73353,Bezalel Ancestor Maharal PaGtGdfather,,,
+f,73354,Shaindel Isserles,,,
+m,73355,Rabbi Naftali Herz Katz,,,
+m,73356,Rabbi Samuel HaLevi,,,
+m,73357,Rabbi Shmuel Seligman,,,
+m,73358,Rabbi Joseph HaLevi,,,
+m,73359,R Meshullam Shmuel Shmulman,,,
+m,73360,Yosef Shapiro,,,
+m,73361,rabbi Yehuda Leib MEISELS of Krakow,,,
+f,73362,Dina Zekl,,,
+m,73363,Yossef Pollack,,,
+m,73364,Rabbi Moshe,,,
+m,73365,Rabbi Israel Henshel Isserles Terumas Hadeshen,73415,73451,N
+m,73366,David Auerbach,73452,,
+m,73367,Rabbi Yitzhak ben Nachmann Schrentzel,73416,73417,
+f,73368,Chava Shrentzel,73418,73419,
+m,73369,Rabbi Yakov Eberles,73420,73421,
+f,73370,Gittel Eberlis Rapaport,73422,,
+m,73371,Rabbi Aharon ben Nethanel Luria the 1st Luria ABD Heilbronn,73423,73424,
+f,73372,Rabanit Miriam Luria,73376,73377,
+m,73373,Levi Kiknish,73453,,
+m,73374,R Seligmann Zak ABD Nürnberg,73425,73426,
+m,73375,Avraham Meisels,73454,,
+m,73376,Rabbi Shlomo Salman Spira ABD Heilbron,73427,73428,
+f,73377,Vergentlin Hanna Spira,73429,73430,
+m,73378,Rabbi Yehuda Kara ABD Glogau,73431,73432,
+f,73379,wife Yehuda YudelKra,73433,73434,
+m,73380,Rabbi Eliezer Lipman ABD Szebersyn,73455,73435,
+f,73381,Mrs Eliezer Bak,73436,,
+m,73382,Eliezer IV HaLevi Horowitz,73437,,
+m,73383,haMaHarShaCh,73456,,
+m,73384,Rabbi Yoel HaCohen Shapira of Cracow,73438,73439,
+f,73385,wife Yoel Shapira,73198,73199,
+m,73386,Shmuel Schor,73440,,
+m,73387,Hagaon Rabbi Eliyaho Ornegil of levov,73441,,
+m,73388,Rabbi Yosef Treves,73429,73430,
+f,73389,wife Yosef Treves,73457,,
+m,73390,R Yitzhak Zekl,73442,,
+m,73391,Rabbi Ephraim Fishel,73438,73439,
+m,73392,dr Rabbi KAUFMANN Kranach,73458,,
+m,73393,Rabbi Dr Eliyahu Menachem Chalfan of Venice,73443,73444,
+f,73394,Fioretta Chalfan,73445,,
+m,73395,Abraham Eberle Gronem,73459,73446,
+m,73396,Rabbi Yona HaAshkenazi of Regensburg,73447,73448,
+m,73397,Rabbi Meir Weil MaHaRam Descendant,73398,73399,
+m,73398,Rabbi Jakob Ben Yehuda Weil MaHaRIV,73460,,
+f,73399,Wife of Jakob Weil Descendant of Maraham of Rothenburg,73449,,
+m,73400,Gaon Shalom haLevi Steinberger of Polands wisest,73450,,
+m,73401,Rabbi Meir ben Israel JaffeSofer Hayashish,73461,,
+m,73402,Eliezer Yosinot Lifshitz,,,
+f,73403,Dreizel Lifshitz,,,
+m,73404,Moshe Lipsshitz,,,
+f,73405,Karo Lipsshitz,,,
+m,73406,משה Katz,,,
+m,73407,Rabbi Yitzchok Wirschler,,,
+m,73408,Hakadosh R Yosef of Cracow,,,
+m,73409,Yehoshua,,,
+m,73410,Jochanan Avraham Treves,,,
+m,73411,Rav Eliezer Halevi Mintz,,,
+m,73412,Isaac Krava Kuh,,,
+f,73413,Kayle Krava Kuh,,,
+m,73414,Feibusch פאיבוך,,,
+m,73415,Rabbi Pethachiah Ashkenazi,73462,73463,
+m,73416,Rabbi Nachman Schrentzel,73493,,
+f,73417,Rosa Schrentzel,73464,73465,
+m,73418,Rabbi Eliezer Leizer Treves,73230,,
+f,73419,Jutta Treves,73494,,
+m,73420,Rabbi Moshe Gershon Altschuler,73466,73467,
+f,73421,Chana Yonah  Altschuler,73282,,
+m,73422,Rabbi Aryeh Leib HaKohen Rapaport ABD Prague,73468,,
+m,73423,Rabbi Nethanel Ben Yehiel preLuria of Wurzburg,73469,73470,
+f,73424,wife Nethanel preLurie too late,73471,,
+m,73425,Shimon Zak,73495,,
+f,73426,Besle Nürnberg,73472,73496,
+m,73427,Rabbi Samuel Zalman Shapira 1st Shapira  of Speyer,73473,,
+f,73428,Julia Minna Vergentlin Shapira,73429,73430,
+m,73429,Matityahu III Ashkenazi Treves Chief Rabbi of France,73474,73497,
+f,73430,Marianne Treves Spira,73475,73476,
+m,73431,Rabbi Avigdor Kara,73477,,
+f,73432,The Daughter of Rabbi Akiva,73498,,
+m,73433,Rabbi Avraham Chaim ben Avraham of Opatow ABD Nikolsburg,73499,,
+f,73434,Miriam wife Avraham Chaim of Opatow,73478,73479,
+f,73435,Mrs Eidel,73480,73481,
+m,73436,Shimon Bak,73500,73482,
+m,73437,Rabbi Pinchas Horowitz HaLevi of Prague,73483,,
+m,73438,R Asher Katz Sapiro,73427,73428,
+f,73439,Wife Asher Katz Spira,73501,,
+m,73440,Rabbi Abraham ben Joshua,73484,,
+m,73441,Hagaon Rabbi Gershon Meisels ZTLOf POZNA,73485,,
+m,73442,R Shalom Charif,73486,,
+m,73443,Rabbi Abba Mari Chalfan the astronomer,73502,,
+f,73444,wife Abba Mari Chalfan,73487,73488,
+m,73445,Rabbi Kalonymos ben David Kalonymides Maestro Calo,73489,,
+f,73446,Ester Katz,73490,73503,
+m,73447,Yisrael of RegenshburgMaHari of Brona,73504,,
+f,73448,Daughter of Rabbi Jakob Ben Yehuda Weil MaHaRIV,73398,73399,
+f,73449,GreatGreat Grandchild of Maharam of Rothenburg,73491,,
+m,73450,Rabbi Yerucham haLevi Steinberger of Ashkenaz wisest,73492,,
+f,73451,Breina  Brendel Ashkenazi,,,
+m,73452,R Yitzhak Auerbach,,,
+m,73453,יעקב קיקניש,,,
+m,73454,Yitskhak Eizik Meisels of Prague,,,
+m,73455,Rabbi Yitzhak Zelig of Worms,,,
+m,73456,Rabbi Avraham HaCohen,,,
+m,73457,ShmielShimon HaChasid,,,
+m,73458,Dr Rabbi Josepha KRANACH,,,
+m,73459,Joschua Heschel Gronem,,,
+m,73460,Rabbi Yehuda Weil,,,
+m,73461,Rabbi Israel Jaffe Sofer,,,
+m,73462,Rabbi Chayim Hantchel Henschel of Hainburg of HenborgHeimberg,73505,,
+f,73463,Wife R Chaim Heimburg Oyzers,73530,,
+m,73464,Rabbi Yaakov Eberlish Jekels,73506,73592,
+f,73465,Gittel Jekels,73507,,
+m,73466,Avraham Altschuler,73531,,
+f,73467,Chana Bat Eliezer Treves Eberles,73532,,
+m,73468,Rabbi Yechiel HaKohen Rapa of Venice,73508,73509,
+m,73469,Rabbi Yechiel Yehudah preLuria I of Erfurt,73510,73511,
+f,73470,Wife of Yechiel preLuria I,73429,73430,
+f,73471,daughter Shlomo Spira,73533,,
+m,73472,Joel von Nurnberg,73512,,
+m,73473,missing generations,73513,,
+m,73474,Rabbi Yosef V Tzarfati Treves Ashkenazi HaGadol,73514,73515,
+m,73475,Samuel Spira Speyer,73534,,
+f,73476,Bat Menassier de Vesoul Spira,73516,,
+m,73477,UN Kra,73517,,
+m,73478,Rabbi Moshe Gel Jekels,73464,73465,
+f,73479,Bele Gel Jekels,73535,,
+m,73480,R Yeshayahu Mendel ABD Cracow,73518,73519,
+f,73481,Wife of R Yeshayahu Mendel,73536,,
+f,73482,Daughter of R Pilta of Posen,73537,,
+m,73483,Rabbi Elazar Horowitz HaLevi of Prague,73520,73521,
+m,73484,Rabbi Joshua ben Samuel,73522,,
+m,73485,Avraham Meisels,73523,,
+m,73486,Yitzhak Zekle of Noyshtat,73524,73525,
+m,73487,Rabbi Joseph ben Solomon Colon MaHaRIK,73526,73538,N
+f,73488,Hadassa Colon,73539,,
+m,73489,Rabbi David Kalonymos,73540,,
+m,73490,Gronem Katz,73527,,
+m,73491,GreatGrandchild of Maharam of Rothenburg,73528,,
+m,73492,Rabbi Yosef Halevi of Polands wisest,73529,,
+m,73493,Rabbi Itzhak Schrentzel,,,
+m,73494,Hakadush R Alexander Halevi HaleviTaussig,,,
+m,73495,Liebmann von Nurnberg,,,
+f,73496,Guett NN,,,
+f,73497,Dinah,,,
+m,73498,Rabbi Akiva,,,
+m,73499,Abraham,,,
+m,73500,Rabbi Yoel Bak,,,
+m,73501,יצחק קליווער,,,
+m,73502,R Eliya Chalfan,,,
+f,73503,Nechama Katz,,,
+m,73504,Haim From Bruna,,,
+m,73505,Rabbi Yisroel of Krems author of Hagahoth Asheri,73541,,N
+m,73506,R Moshe Eberlish Mayor of Little Poland,73542,73543,
+m,73507,Moshe Hazakein Landau,73544,73563,
+m,73508,Rabbi Yekutiel HaKohen Rapa,73545,,
+f,73509,Wife of Yekutiel HaCohen Rappa,73546,73547,
+m,73510,Rabbi Shimshon preLuria of Erfurt,73548,73549,
+f,73511,Miriam preLuria,73550,73551,
+m,73512,R Meir von Ingolstadt,73564,,
+m,73513,Klonimus ben Shabtai of Rome,73565,,
+m,73514,Rabbi Yochanan Ashkenazi Treves HaGadol,73552,73553,
+f,73515,wife Yochanan Hagadol Treves,73554,,
+m,73516,Manassier Manasse de Vesoul,73566,,
+m,73517,R Avigdor Kara Author of Pliah,73555,,
+m,73518,R Yitzchok Kurbeil MiBaalei Tosofos,73567,,
+f,73519,Wife R Yitschok Korbeil Dau R Yechiel of Paris,73556,,
+m,73520,Meir HaLevi Horowitz,73269,73270,
+f,73521,Sheindel Horowitz,73557,,
+m,73522,Rabbi Samuel ben Hayyim,73558,,
+m,73523,Ydna JM410,73568,,
+m,73524,Yosef Shor,73559,,
+f,73525,Chava Shor Treivish,73230,,
+m,73526,Rabbi Solomon Trabotto,73560,,
+m,73527,Salomon  Shlomo Samuel Katz Cohen,73569,,
+m,73528,Grandchild of Maharam of Rothenburg,73561,,
+m,73529,Gaon Gershon HaLevi Eretz Israel Kabala wisest,73562,,
+m,73530,Rabbi Oyzer Oyzers of Schlesien,,,
+m,73531,Father of Avraham Eber Eberles Altschuler,,,
+m,73532,Eliezer Treves,,,
+m,73533,Shlomo Spira,,,
+m,73534,Jochanan Ashkenazi,,,
+m,73535,Lieberman יעקליש,,,
+m,73536,אביגדור,,,
+m,73537,ר פילטא מפוזנא,,,
+f,73538,wife Solomon Colon,,,
+m,73539,R Levi Trabotto,,,
+m,73540,Jacob Meir Kalonymus,,,
+m,73541,Rabbi Shlomo son Rabbeinu Yaakov ben Asher ben HaTur Baal HaTurim,73588,,
+m,73542,R Menachem Man from Italy,73598,,
+f,73543,Wife R Menachem Man dau R Avraham Eber Altshuler,73466,73467,
+m,73544,Yekusiel Zalman Landau,73586,73587,
+m,73545,Rabbi Moshe HaCohen Rappa of Porto Mantovanotaly,73599,,
+m,73546,Rabbi Meshulam Kozi Katz,73600,,
+f,73547,Devora Katz,73601,,
+m,73548,Rabbi Yehiel i pre Luria,73606,,
+f,73549,wife Yehiel preLuria,73581,,
+m,73550,Shlomo Shapiro of Heilbron,73582,73583,
+f,73551,Bat Manasse Treves,73602,,
+m,73552,Avraham Ben Matityahu Ashkenazi of Treves Troyes,73577,73578,
+f,73553,wife Avraham Ashkenazi Treves,73579,73580,
+m,73554,Rabbi Menashe Di Visa,73603,,
+m,73555,Yitzchak Kara,73608,,
+m,73556,Rabeinu Yechiel MiParis,73604,,N
+m,73557,Yisroel Pinchas,73605,,
+m,73558,Rabbi Hayyim ben Samuel of Dampierre,73593,,
+m,73559,Chaim Shor,73594,,
+m,73560,Uri Feivisch Colon,73595,,
+m,73561,Child of MaHaRam of Rothenburg,73589,73590,
+m,73562,Gaon Yerucham HaLevi of Ashkenaz wisest,73596,,
+f,73563,Rachel Landau,,,
+m,73564,Jacob Sangmeister,,,
+m,73565,Moshe Klonimus,,,
+m,73566,Heliot de Vesoul,,,
+m,73567,יוסף,,,
+m,73568,Yitskhak Eizik Meisels דור עשירי ממר עוקבא,,,
+m,73569,Samuel Levi Cohen,,,
+m,73570,Rabbeinu Asher ben Yechiel ראש,73597,,N
+f,73571,Yutta bat Shlomo,73618,73619,
+m,73572,Rabbi Yehuda Liev Landau Ashkenazi,73620,,
+m,73573,Rabbi Avraham Zachshan,73621,,
+m,73574,Jehiel pre Luria,73606,,
+m,73575,Ben Shlomo Salman Spira,73622,,
+m,73576,Rabbi Yochanan II ben Matityahu Treves of Italy,73429,73430,
+m,73577,Matityahu II ben Yosef Treves Ashkenazi,73584,,
+f,73578,wife Matityahu II ben Yisef Treves Ashkenazi,73579,73580,
+m,73579,Yehuda ben Yitzhak Treves Sir Leon of Paris,73585,,
+f,73580,Wife of Judah ben Isaac Sir Leon,73607,,
+m,73581,R Solomon Spira,73623,73624,
+m,73582,R Shmuel Shapiro ABD Heilbronn and Landau,73575,,
+f,73583,Miriam Shapiro,73576,,
+m,73584,Rabbi Yosef ben Moshe Treves Ashkenazi II Porat Yosef,73614,73615,
+m,73585,Itzhak Hazaken ben Yehuda Hazaken Treves of Paris,73616,73642,
+m,73586,Rabbi Yaakov Landau Author of HaAgur,73572,,
+f,73587,mrs Landau,73573,,
+m,73588,Rabbeinu Yaakov Asher ben Asher Baal HaTurim,73570,73571,N
+m,73589,Rabbi Meir ben Baruch MaHaRaM of Rothenburg,73609,,N
+f,73590,Rachel wife MaHaRaM of Rothenburg,73610,73611,
+m,73591,Rabbi Moshe Eberlish,73542,,
+f,73592,Wife Rabbi Moshe Eberlish,,,
+m,73593,Rabbi Samuel ben Abraham of Orleans,73607,,
+m,73594,Avraham Shor,73625,,
+m,73595,Rabbi Joseph haLevi Colon,73626,,
+m,73596,HaGaon David Halevi Steinberger,73612,,
+m,73597,Rabbeinu Yechiel ben Uri HaChassid,73613,,
+m,73598,יצחק מאיטאליע,,,
+m,73599,Rabbi Yekutiel Meshulam HaCohen Rappa the 1st Rapoport,,,
+m,73600,Rabbi Moshe Yaakov Katz,,,
+m,73601,rabbi Moshe Yaakov Katz,,,
+m,73602,Rabbi Samuel Spira Menassier,,,
+m,73603,Rabbi Yechiel Di Visa,,,
+m,73604,יוסף הלוי,,,
+m,73605,Rav Pinchas,,,
+m,73606,Solomon pre Luria,73628,,
+m,73607,rabbi Abraham ben Joseph of Orleans,73629,,
+m,73608,Rabbi Yuda Kara,73627,73637,
+m,73609,Baruch ben Meir,73638,,
+m,73610,Nathan ben Israel Shmuel,73639,,
+f,73611,Rivka wife Nathan,73617,73640,
+m,73612,Rav Zalman Dov HaLevi,73655,,
+m,73613,Rabbi Uri ben Elyakim,73635,73636,
+m,73614,Moshe Porat Ben Yehiel Treves Ashkenazi,73630,73631,
+f,73615,wife Moshe Treves Ashkenazi,73641,,
+m,73616,Yehuda ben Yom Tov of Falaise RI haZaken  The Elder,73632,73633,
+m,73617,Yitzhak Ben Adonikam ben Amnon,73634,,
+m,73618,Rabbi Shlomo Judlein,,,
+f,73619,Channah,,,
+m,73620,ממשפחת הקרחי מזרע קרח בן יצהר בן קהת בן לוי בן יעקב אבינו עה,,,
+m,73621,R Yechiel Zaks,,,
+m,73622,Shlomo Zalman Spira,,,
+m,73623,Shmuel Spira,,,
+f,73624,Matatia of Troyes,,,
+m,73625,רבי שמואל שור צאצא ר יוסף שור מבעלי התוספות ומגזע יוסף הצדיק,,,
+m,73626,Yitzhak haLevi Colon,,,
+m,73627,Rabbi Yossef Kara,73644,,
+m,73628,Moses Aaron pre Luria of Orleans,73646,,
+m,73629,Joseph ben Isaac Bekhor Shor of Orleans,73643,,
+m,73630,Jechiel Ben Matityahu AshkenaziTreves The Posek,73647,,
+f,73631,wife Yehiel Ashkenazi Treves,73648,,
+m,73632,Rabbi Yom Tov Treves RASHI GdSon,73649,73650,
+f,73633,Fleur de lis Treves of Falaise,73651,73652,
+m,73634,Adonikam Ben Amnon,73656,,
+m,73635,Rabbi Elyakim Yehuda ben Yehuda,73657,,
+f,73636,wife Elyakim Reban REBAN dau,73653,73654,
+f,73637,dauKaloniumus Hazaken Kara,,,
+m,73638,R’ Meier of Rothenburg,,,
+m,73639,Israel Shmuel,,,
+f,73640,Rachel wife Yitzhak Ben Adonikam,,,
+m,73641,Rabbi Samuel ben Meier,,,
+f,73642,Wife RI Hazaken,73666,,
+m,73643,Rabbi Yizchak Ben Rav Joseph,73658,,
+m,73644,Gaon Shimon Kara,73667,,
+m,73645,Hagaon Harav Yaakov Yosef Steinberger Halevi,73659,,
+m,73646,Isaac Pre Luria,73660,,
+m,73647,Rabbi Matityahu Ben Moshe TrevesAshkenazi HaGadol of Paris,73668,,
+m,73648,Rabbi Yitzhak ben Meir Klonymus Ribam Rashi Gdson,73661,73662,
+m,73649,Yehuda Azriel ben Nathan RIBAN,73669,73670,
+f,73650,Miriam Bat RASHI,73673,73674,
+m,73651,Rabbeinu Tam,73661,73662,N
+f,73652,Miriam Klonimus R TAM wife,73671,,
+m,73653,Rabbenu Eliezer ben Nassan ben Nassan REBAN,73672,73663,
+f,73654,wife REBAN dau Elyakim ben Yosef,73664,73665,
+m,73655,Rav Menachem Mendel HaLevi,73645,,
+m,73656,Amnon,,,
+m,73657,Rabbi Yehuda,,,
+m,73658,Hanadiv Rav Joseph Mekinon from Orleans,73680,,
+m,73659,Dovid Ben Shimshon HaLevi,73675,,
+m,73660,Rabbi Eliezer Pre Luria,73676,,
+m,73661,Rabbi Meir HaYashish ben Samuel Klonymos RaM of Ramerupt,73677,73681,
+f,73662,Yocheved bat RASHI Kalonimus,73673,73674,
+f,73663,Unnamed daughter bat Eliezer,73678,,
+m,73664,Rabbi Elyakim Joseph ben Yosef,73682,,
+f,73665,wife of R Elyakim of ben Yosef,73679,,
+m,73666,Yehuda de Falaise,,,
+m,73667,חלבו קרא,,,
+m,73668,Moshe The 1st Treves Baal Hatossafot ,,,
+m,73669,Rabbi Nathan of Paris RIBaN father,,,
+f,73670,Alvina,,,
+m,73671,Yosef Angel de Falaise,,,
+m,73672,Rabbi Natan,,,
+m,73673,RASHI,73683,73684,N
+f,73674,Rivkah wife of Rashi Abun,73685,,
+m,73675,Rav Shimshon HaLevi of Speyer,73686,,
+m,73676,Rabbi Aaron doctor the Doctor,73687,,
+m,73677,Rabbi Shmuel Klonymus de Vives Hayashish of Romrug,73688,,
+m,73678,Rabbi Eliezer ben Rabbenu Gershom,73689,73695,
+m,73679,Rabbi Yehudah Ben Moshe HaKohen Sire Léonṭin,73690,,
+m,73680,Rabbi Yitzhak Bekhor Shor,,,
+f,73681,Miriam Klonymus,,,
+m,73682,Rabbi Yosef of Maintz of Maintz,,,
+m,73683,Rabbi Yitzchak Ben Shlomo Tzarfati RASHIs father,73691,,
+f,73684,Leah Miriam Tzarfati RASHIs mother,73692,,
+m,73685,Yitzhak Benabun Rashi fainlaw,73693,,
+m,73686,hagaon Rabbi Avraham HaLevi Kalonimus haZadik haNistar of Ashkenaz,73694,,
+m,73687,haGaon Atdam,73696,,
+m,73688,Moshe Meir Klonymos,73697,73698,
+m,73689,Rabbeinu Gershom,73699,,N
+m,73690,Rabbi Moshe HaKohen,,,
+m,73691,Sharma ben Elyakim Tzarfati RASHI Gdfather,73700,73701,
+m,73692,Yosef Ben Shimon or Yizhak ben Abun Ben Shimon Abun ,73702,,
+m,73693,Abun ben Shimon HaGadol of Mainz,73702,,
+m,73694,Rav Shimshon HaLevi of Regensburg,73703,,
+f,73695,Bonna bat Kalonymos II,73704,,
+m,73696,Gaon Rabbi Yossi de Konstantina of Constantinople,73705,,
+m,73697,Rabbi Meshullam ||| Ben Kalonymus Ben Moshe || The Roman,73704,,
+f,73698,Dvorah Klonymos,,,
+m,73699,Rabbi Judah of Narbonne,,,
+m,73700,Elyakim Ben Aharon Tzarfati,73706,,
+f,73701,wife Elyakim Tzarfati,73707,,
+m,73702,Shimon HaGadol of Mainz,73742,,
+m,73703,Rabbi Dov Berish Halevi Ashkenazi,73708,,
+m,73704,Kalonymus II Ben ben Moshe II,73709,,
+m,73705,Gaon Rabbi Drowsy Drowsy,73710,,
+m,73706,Aharon Shlomo Tzarfati,73711,,
+m,73707,Rabbi Yitzhak Hassid,73717,,
+m,73708,Moshe Zalman ben Yehudah haChassid,73712,73713,
+m,73709,Moshe Hazaken ben Kalonymus I,73714,,
+m,73710,Yossi Maniumi Bar Nachman of Eretz Israel,73715,,
+m,73711,Rabbi Ahadham ben Yosef Tzarfati,73718,,
+m,73712,Rabbi Yehudah HeChassid,73719,73716,N
+f,73713,Wife of Rav Yehuda HaChasid,73720,,
+m,73714,Kalonymus ben Meshullam I,73721,,
+m,73715,Nachman ben haGaon Yochanan of Eretz Israel,73722,,
+f,73716,Wife Shmuel Hachasid of Speyer,73723,,
+m,73717,Rabbi Avin Hagadol,,,
+m,73718,Rabbi Yosef haGaon Tzarfati,73725,,
+m,73719,Shmuel haChassid s Kalonymus V of Speyer,73724,,
+m,73720,Rabbi Avrum Of the Toisfes,73727,,
+m,73721,Meshullam Moshe Ben Kalonymus,73726,,
+m,73722,haGaon Yochanan Ben Yohoshuah Zimri,73728,,
+m,73723,ר משולם R Meshulam,,,
+m,73724,Rav Kalonymus HaZaken,73729,,
+m,73725,HaGaon Benjamin Maniumi,73730,,
+m,73726,Yekhuthi’el Kalonymus Ben David,73731,,
+m,73727,Rabbi Yosef,,,
+m,73728,Yehoshua Zimri Earliest recorded ancestor of RASHI,,,
+m,73729,Rabbi Yitzchak ben Eliezer Klonymus the 4th,73732,73735,
+m,73730,Yanai ben Yochanan,73733,,
+m,73731,Rabb David Kalonymus HaGaon of Lucca,73734,,
+m,73732,Eliezer ben Nathan HaGadol Klonymus,73736,73737,
+m,73733,Gaon Yochanan Abayei,73738,,
+m,73734,Meshulam Kalonymus,73739,,
+f,73735,Chana Klonymus,73740,,
+m,73736,Rav Yitzchak HaGadol,73741,,
+f,73737,wife of Yizchak bat Joel HaGadol,73740,,
+m,73738,Abai ben Eliezer,73743,,
+m,73739,Rabbi Meshulam ben Yehuda Kalonymus,73744,,
+m,73740,Eliakim ben Yosef HaGadol,73745,,
+m,73741,Rav Yehoshua Klonymus,73746,73747,
+m,73742,Yitzhak HaChasid Bar Klonimus,73746,73747,
+m,73743,Gaon Eliezer ben Yossi Maniumi,73710,,
+m,73744,Yehuda Kalonymus,73748,,
+m,73745,Yosef HaGadol,73752,,
+m,73746,Rabbi Abun Kalonymus Hachassid HaGadol,73749,,
+f,73747,bat Shimon of Mancha from Lucca Kalonymus,73750,,
+m,73748,Rabenu Meshulam,73751,,N
+m,73749,Yitzhak ben Meshullam Kalonymus,73755,73753,
+m,73750,Shimon of Mancha ben Eleazer HaGadol from Lucca,73756,,
+m,73751,Nescio Nomen Kalonymides 1,73754,,
+m,73752,R AbunHaChassid Kalonimus The great,,,
+f,73753,Unknown bat Joseph Kalonymus,73757,,
+m,73754,Nescio Nomen Kalonymides 2,73758,,
+m,73755,Meshullam Kalonymus HaGadol,,,
+m,73756,Elazar Hagadol,,,N
+m,73757,Joseph HaZaken,73759,,
+m,73758,Yosef Kalonymides,73760,,
+m,73759,Shimon,,,
+m,73760,Shimeon Kalonymides,,,
+m,73761,Yehuda Kelonymus I,,,
+`;
+    // =====================================================================
+    // END OF CSV DATA - DON'T MODIFY BELOW THIS LINE
+    // =====================================================================
+    
+    function FamilyTreeVisualization() {
+      const [data, setData] = React.useState([]);
+      const [loading, setLoading] = React.useState(true);
+      const [error, setError] = React.useState(null);
+      const [tooltip, setTooltip] = React.useState({ visible: false, x: 0, y: 0, content: '' });
+      const [nodesCount, setNodesCount] = React.useState(0);
+      const svgRef = React.useRef(null);
+      const tooltipRef = React.useRef(null);
+      const svgContainerRef = React.useRef(null);
+      
+      // Parse and process the CSV data on component mount
+      React.useEffect(() => {
+        try {
+          // Parse CSV string
+          const parsedData = parseCSV(FAMILY_TREE_CSV_DATA);
+          if (parsedData && parsedData.length > 0) {
+            setData(parsedData);
+            setNodesCount(parsedData.length);
+          } else {
+            setError("No data found in the CSV");
+          }
+        } catch (err) {
+          setError(`Error processing data: ${err.message}`);
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+      
+      // Render the family tree when data changes
+      React.useEffect(() => {
+        if (data.length > 0 && svgRef.current) {
+          renderFamilyTree(data);
+        }
+      }, [data]);
+      
+      // Resize handler
+      React.useEffect(() => {
+        const handleResize = () => {
+          if (data.length > 0 && svgRef.current) {
+            renderFamilyTree(data);
+          }
+        };
+        
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+      }, [data]);
+      
+      // Parse CSV function
+      const parseCSV = (csvText) => {
+        // Skip empty lines and parse header
+        const lines = csvText.split('\n').filter(line => line.trim());
+        const headers = lines[0].split(',').map(h => h.trim());
+        
+        // Parse data rows
+        const result = [];
+        for (let i = 1; i < lines.length; i++) {
+          const row = {};
+          const values = lines[i].split(',').map(v => v.trim());
+          
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+          
+          result.push(row);
+        }
+        
+        return result;
+      };
+      
+      // Reset view
+      const handleReset = () => {
+        if (svgRef.current && data.length > 0) {
+          renderFamilyTree(data);
+        }
+      };
+      
+      // Show tooltip
+      const showTooltip = (event, d) => {
+        // Get the SVG container's position
+        const svgRect = svgContainerRef.current.getBoundingClientRect();
+        
+        // Calculate tooltip position relative to SVG container
+        const x = event.clientX - svgRect.left + 10;
+        const y = event.clientY - svgRect.top + 10;
+        
+        // Create tooltip content
+        const content = `
+          <div><strong>${d.name}</strong></div>
+          <div>ID: ${d.id}</div>
+          <div>Gender: ${d.gender === 'm' ? 'Male' : 'Female'}</div>
+          ${d.notable ? '<div><em>Notable Person</em></div>' : ''}
+          ${d.parentNames.length > 0 ? `<div>Parents: ${d.parentNames.join(', ')}</div>` : ''}
+        `;
+        
+        setTooltip({
+          visible: true,
+          x,
+          y,
+          content
+        });
+      };
+      
+      // Hide tooltip
+      const hideTooltip = () => {
+        setTooltip({ ...tooltip, visible: false });
+      };
+      
+      // Find ancestors for multiple generations
+      const findAllAncestors = (personId, peopleMap, maxDepth = 60) => {
+        const ancestors = new Set();
+        
+        const addAncestors = (id, currentDepth = 0) => {
+          if (currentDepth >= maxDepth) return;
+          
+          const person = peopleMap[id];
+          if (!person) return;
+          
+          if (person.Parent1ID && peopleMap[person.Parent1ID]) {
+            ancestors.add(person.Parent1ID);
+            addAncestors(person.Parent1ID, currentDepth + 1);
+          }
+          
+          if (person.Parent2ID && peopleMap[person.Parent2ID]) {
+            ancestors.add(person.Parent2ID);
+            addAncestors(person.Parent2ID, currentDepth + 1);
+          }
+        };
+        
+        addAncestors(personId);
+        return Array.from(ancestors);
+      };
+    
+      // Main rendering function for the family tree
+      const renderFamilyTree = (data) => {
+        if (!svgRef.current || !svgContainerRef.current) return;
+    
+        // Clear previous rendering
+        d3.select(svgRef.current).selectAll("*").remove();
+    
+        // Create a map of people by ID for easy lookup
+        const peopleMap = {};
+        data.forEach(person => {
+          peopleMap[person.ID] = person;
+        });
+        
+        // Find Chana Abraham in data
+        const chanaEntry = data.find(p => p.Name.toLowerCase().includes('chana abraham'));
+        const rootId = chanaEntry ? chanaEntry.ID : data[0].ID; // Default to first entry if not found
+        
+        // Get all ancestors
+        const ancestorIds = findAllAncestors(rootId, peopleMap);
+        
+        // Filter to include only Chana and ancestors
+        const relevantIds = [rootId, ...ancestorIds];
+        const relevantData = data.filter(p => relevantIds.includes(p.ID));
+        
+        // Build the nodes with parent names for tooltips
+        const nodes = relevantData.map(person => {
+          const parentNames = [];
+          
+          if (person.Parent1ID && peopleMap[person.Parent1ID]) {
+            parentNames.push(peopleMap[person.Parent1ID].Name);
+          }
+          
+          if (person.Parent2ID && peopleMap[person.Parent2ID]) {
+            parentNames.push(peopleMap[person.Parent2ID].Name);
+          }
+          
+          return {
+            id: person.ID,
+            name: person.Name,
+            gender: person.Gender.toLowerCase(),
+            parentIds: [person.Parent1ID, person.Parent2ID].filter(id => id && peopleMap[id]),
+            notable: person.Notable === 'N',
+            parentNames
+          };
+        });
+    
+        // Create links from parent-child relationships
+        const links = [];
+        nodes.forEach(node => {
+          node.parentIds.forEach(parentId => {
+            links.push({
+              source: parentId,
+              target: node.id
+            });
+          });
+        });
+    
+        // Set up dimensions
+        const width = svgContainerRef.current.clientWidth;
+        const height = svgContainerRef.current.clientHeight;
+        
+        // Create SVG element
+        const svg = d3.select(svgRef.current)
+          .attr("width", "100%")
+          .attr("height", "100%")
+          .attr("viewBox", `0 0 ${width} ${height}`);
+          
+        // Add zoom behavior
+        const zoom = d3.zoom()
+          .scaleExtent([0.1, 5])
+          .on("zoom", (event) => {
+            g.attr("transform", event.transform);
+          });
+          
+        svg.call(zoom);
+        
+        // Add a group for zooming
+        const g = svg.append("g");
+        
+        // Reset zoom
+        svg.call(zoom.transform, d3.zoomIdentity.translate(width/2, height*0.8).scale(0.8));
+        
+        // Add arrow marker definition for links
+        g.append("defs").append("marker")
+          .attr("id", "arrow")
+          .attr("viewBox", "0 -5 10 10")
+          .attr("refX", 20)
+          .attr("refY", 0)
+          .attr("markerWidth", 6)
+          .attr("markerHeight", 6)
+          .attr("orient", "auto")
+          .append("path")
+          .attr("fill", "#999")
+          .attr("d", "M0,-5L10,0L0,5");
+        
+        // Compute generational depth for each person
+        function calculateGenerationalDepth(personId) {
+          const memo = new Map();
+          
+          function calcDepth(id) {
+            if (memo.has(id)) return memo.get(id);
+            
+            const person = peopleMap[id];
+            if (!person) return 0;
+            
+            // Root node (Chana) is at depth 0
+            if (id === rootId) {
+              memo.set(id, 0);
+              return 0;
+            }
+            
+            // Find all children of this person
+            const children = data.filter(p => 
+              p.Parent1ID === id || p.Parent2ID === id
+            );
+            
+            if (children.length === 0) {
+              memo.set(id, 10); // Leaf nodes without children to Chana
+              return 10;
+            }
+            
+            // Calculate min depth through children
+            let minDepth = Infinity;
+            for (const child of children) {
+              const childDepth = calcDepth(child.ID);
+              minDepth = Math.min(minDepth, childDepth);
+            }
+            
+            const depth = minDepth + 1;
+            memo.set(id, depth);
+            return depth;
+          }
+          
+          return calcDepth(personId);
+        }
+        
+        // Calculate depths with Chana as the reference point
+        nodes.forEach(node => {
+          node.depth = calculateGenerationalDepth(node.id);
+        });
+    
+        // Create D3 force simulation
+        const simulation = d3.forceSimulation(nodes)
+          .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+          .force("charge", d3.forceManyBody().strength(-500))
+          .force("center", d3.forceCenter(width / 2, height / 2))
+          .force("x", d3.forceX(width / 2).strength(0.1))
+          .force("y", d3.forceY(d => {
+            // Position based on generational depth (Chana at bottom)
+            return height * 0.8 - (d.depth * 120);
+          }).strength(0.5))
+          .force("collide", d3.forceCollide().radius(60).strength(0.7));
+    
+        // Add links
+        const link = g.append("g")
+          .selectAll("line")
+          .data(links)
+          .enter()
+          .append("line")
+          .attr("stroke", "#999")
+          .attr("stroke-width", 1.5)
+          .attr("stroke-opacity", 0.6)
+          .attr("marker-end", "url(#arrow)");
+    
+        // Add nodes
+        const node = g.append("g")
+          .selectAll("g")
+          .data(nodes)
+          .enter()
+          .append("g")
+          .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended))
+          .on("mouseover", showTooltip)
+          .on("mouseout", hideTooltip);
+    
+        // Add circles for nodes
+        node.append("circle")
+          .attr("r", d => d.notable ? 12 : 8)
+          .attr("fill", d => d.gender === 'f' ? "#FFC0CB" : "#ADD8E6")
+          .attr("stroke", d => {
+            if (d.notable) return "#FFD700";
+            return d.gender === 'f' ? "#FF69B4" : "#4682B4";
+          })
+          .attr("stroke-width", d => d.notable ? 3 : 1.5);
+    
+        // Add text labels for nodes
+        node.append("text")
+          .attr("dx", 12)
+          .attr("dy", ".35em")
+          .text(d => d.name)
+          .style("font-size", d => d.notable ? "14px" : "12px")
+          .style("font-weight", d => d.notable ? "bold" : "normal")
+          .style("fill", "#333")
+          .style("font-family", "Arial, sans-serif");
+    
+        // Update positions during simulation
+        simulation.on("tick", () => {
+          link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+    
+          node
+            .attr("transform", d => `translate(${d.x}, ${d.y})`);
+        });
+    
+        // Drag functions
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        }
+    
+        function dragged(event, d) {
+          d.fx = event.x;
+          d.fy = event.y;
+        }
+    
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }
+      };
+    
+      return (
+        <div className="container">
+          <h1>Family Tree Visualization</h1>
+          
+          {loading && (
+            <div className="loading">
+              <div className="spinner"></div>
+              <span>Loading family tree...</span>
+            </div>
+          )}
+          
+          {error && (
+            <div className="error">
+              <p>{error}</p>
+            </div>
+          )}
+          
+          {!loading && !error && (
+            <div className="visualization-container">
+              <button 
+                className="reset-button"
+                onClick={handleReset}
+                aria-label="Reset View"
+              >
+                <lucide-icon name="refresh-cw" size="20"></lucide-icon>
+              </button>
+              
+              <div className="controls">
+                <button 
+                  onClick={() => {
+                    if (svgRef.current) {
+                      const svg = d3.select(svgRef.current);
+                      const currentZoom = d3.zoomTransform(svg.node());
+                      svg.call(
+                        d3.zoom().transform,
+                        d3.zoomIdentity.translate(currentZoom.x, currentZoom.y).scale(currentZoom.k * 1.3)
+                      );
+                    }
+                  }} 
+                  className="control-button"
+                  aria-label="Zoom In"
+                >
+                  <lucide-icon name="zoom-in" size="20"></lucide-icon>
+                </button>
+                <button 
+                  onClick={() => {
+                    if (svgRef.current) {
+                      const svg = d3.select(svgRef.current);
+                      const currentZoom = d3.zoomTransform(svg.node());
+                      svg.call(
+                        d3.zoom().transform,
+                        d3.zoomIdentity.translate(currentZoom.x, currentZoom.y).scale(currentZoom.k / 1.3)
+                      );
+                    }
+                  }}
+                  className="control-button" 
+                  aria-label="Zoom Out"
+                >
+                  <lucide-icon name="zoom-out" size="20"></lucide-icon>
+                </button>
+              </div>
+              
+              <div className="legend">
+                <div className="legend-item">
+                  <span className="legend-color female-color"></span>
+                  <span>Female</span>
+                </div>
+                <div className="legend-item">
+                  <span className="legend-color male-color"></span>
+                  <span>Male</span>
+                </div>
+                <div className="legend-item">
+                  <span className="legend-color notable-color"></span>
+                  <span>Notable Person</span>
+                </div>
+              </div>
+              
+              <div className="svg-container" ref={svgContainerRef}>
+                <svg ref={svgRef}></svg>
+                {tooltip.visible && (
+                  <div 
+                    className="tooltip" 
+                    ref={tooltipRef}
+                    style={{ left: tooltip.x, top: tooltip.y }}
+                    dangerouslySetInnerHTML={{ __html: tooltip.content }}
+                  />
+                )}
+              </div>
+              
+              <div className="status-bar">
+                Displaying {nodesCount} family members
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Render the React component
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<FamilyTreeVisualization />);
+  </script>
+</body>
+</html>
